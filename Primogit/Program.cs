@@ -1,5 +1,9 @@
 ﻿using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
+using Newtonsoft.Json;
 using System.Reflection.PortableExecutable;
+
 
 namespace Primogit
 {
@@ -7,7 +11,13 @@ namespace Primogit
     {
         static void Main(string[] args)
         {
-            string connectionString = "data Source=DESKTOP-J5O3RI2;initial catalog=PrimoDB;uid=sa;pwd=duma2008sa;TrustServerCertificate=true";
+
+            var configuration = new ConfigurationBuilder()
+                  .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: false); 
+
+            var config = configuration.Build();
+            var connectionString = config["ConnectionString"];
 
             SqlConnection conn = new SqlConnection(connectionString);
 
@@ -36,14 +46,97 @@ namespace Primogit
                     orari_uffico.Add(orario);
                 }
 
-                foreach(var item in orari_uffico) {
-                    Console.Write(item.Id + " - ");
-                    Console.Write(item.GiornoSettimana + " - ");
-                    Console.Write(item.Ora_Da + " - ");
-                    Console.Write(item.Ora_A + " - ");
-                    Console.WriteLine(item.TotaleOre);
+                DateTime totale;
+
+                var totaleOreLavorative = 0.0;
+                bool ok_d = true;
+                bool ok_m = true;
+                var date = new DateTime();
+                TimeSpan Ora = new TimeSpan();
+                TimeSpan Orafin = new TimeSpan();
+                double orario_finale = new double();
+
+                do
+                {
+                    Console.Write("inserisci la data e l'ora");
+                    var dataInput = Console.ReadLine();
+
+                    if (DateTime.TryParse(dataInput, out date))
+                    {
+                        ok_d = true;
+                        DayOfWeek DayOfWeek = date.DayOfWeek;
+
+                        Ora = date.TimeOfDay;
+
+                    }
+                    else
+                    {
+                        Console.WriteLine("non hai inserito dei dati corretti");
+                        ok_d = false;
+                    }
                 }
+                while (ok_d == false);
+
+                do
+                {
+                    Console.Write("Inserisci il numero di minuti");
+                    var minuti = Console.ReadLine();
+                    var totalMinutes = 0.0;
+                    if (double.TryParse(minuti, out totalMinutes))
+                    {
+                        Console.WriteLine("{0:00}:{1:00}", totalMinutes / 60, totalMinutes % 60);
+                        totale = date.AddMinutes(totalMinutes);
+
+
+                        totaleOreLavorative = totalMinutes / 60.0;
+
+                        ok_m = true;
+                    }
+                    else
+                    {
+                        Console.WriteLine("non hai inserito dei dati corretti");
+                        ok_m = false;
+                    }
+                }
+                while (ok_m == false);
+                double ora = Ora.Hours;
+                do
+                {
+
+                    DayOfWeek dofw = date.DayOfWeek;
+
+                    OrarioUfficio orario = orari_uffico.Where(x => x.GiornoSettimana== dofw).First();
+
+                    double totale_ore = 0;
+                    if (Ora > orario.Ora_Da && Ora <= orario.Ora_A)
+                    {
+                        Orafin = Ora - orario.Ora_Da;
+                        double tot_diff_hour = Orafin.TotalHours;
+                        totale_ore = orario.TotaleOre - tot_diff_hour;
+
+                    }
+                    else
+                    {
+                        totale_ore = orario.TotaleOre;
+                    }
+                    if (totaleOreLavorative < totale_ore)
+                    {
+                        totale_ore = totaleOreLavorative;
+                    }
+                    totaleOreLavorative = totaleOreLavorative - totale_ore;
+                    orario_finale = orario.Ora_Da.Hours;
+                    orario_finale = orario_finale + totale_ore;
+                    if (totaleOreLavorative > 0)
+                    {
+                        date = date.AddDays(1);
+                    }
+
+                } while (totaleOreLavorative > 0);
+
+                Console.WriteLine($"La data di fine sarà {date.ToString("dd/MM/yyyy")} alle ore {orario_finale}");
+                return;
             }
+
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message.ToString());

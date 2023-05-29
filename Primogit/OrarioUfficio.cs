@@ -14,5 +14,10 @@ namespace Primogit
         public TimeSpan Ora_Da { get; set; }
         public TimeSpan Ora_A { get; set; }
         public double TotaleOre { get; set; }
+
+        internal static object Where(Func<object, bool> value)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
